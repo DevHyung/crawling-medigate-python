@@ -1,7 +1,9 @@
 #pycharm
 .idea
+__pycache__
 #etc
 *.png
 *.pptx
+chromedriver
 #configfile
 CONFIG.py

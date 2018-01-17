@@ -3,3 +3,5 @@
 #etc
 *.png
 *.pptx
+#configfile
+CONFIG.py

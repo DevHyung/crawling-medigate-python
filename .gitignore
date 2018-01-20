@@ -1,9 +1,10 @@
-#pycharm
+###pycharm
 .idea
 __pycache__
-#etc
-#*.png
-#*.pptx
+###etc
+*.png
+*.pptx
 chromedriver
-#configfile
+option.txt
+###configfile
 CONFIG.py

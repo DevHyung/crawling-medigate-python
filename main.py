@@ -1,15 +1,13 @@
-import requests
+#-*-encoding:utf8-*-
 import urllib.request
 import time
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from openpyxl import Workbook
 from openpyxl import load_workbook
-from openpyxl.styles import PatternFill,Alignment, Font,Border,Side,NamedStyle
-from openpyxl.styles import colors
+from openpyxl.styles import PatternFill,Alignment, Font,Border,Side,NamedStyle,colors
 import re
-#numregex = re.compile('\d+')
-#numregex.search("test")
+numregex = re.compile('\d+')
 ###
 font =Font(color=colors.BLACK)
 font2 = Font(color='578fcc')
@@ -42,19 +40,13 @@ def style_range(ws, cell_range, border=Border(), fill=None, font=None, alignment
                 c.alignment=alignment
                 c.border = border
 def initExcel(filename):
-    """
-    지역 분류 과목 기관 기관명 제목 조회 작성일 마감 이미지
-    """
-    header1 = ['지역','분류','과목','기관','기관명','제목','조회','작성일','마감','이미지']
+    header1 = ['지역','분류','과목','기관','기관명','제목','조회','작성일','마감']
     wb = Workbook()
     ws1 = wb.worksheets[0]
     ws1.append(header1)
-    style_range(ws1, 'A1:J1', border=border, fill=fill,font=font, alignment=ali)
+    style_range(ws1, 'A1:I1', border=border, fill=fill,font=font, alignment=ali)
     wb.save(filename)
-def saveExcel(datalist,filename):
-    """
-    지역 분류 과목 기관 기관명 제목 조회 작성일 마감 이미지
-    """
+def saveExcel(datalist,imagelist,alist,filename):
     wb = load_workbook(filename)
     ws1 = wb.worksheets[0]
     startrow = ws1.max_row + 1
@@ -63,22 +55,25 @@ def saveExcel(datalist,filename):
     for rowidx in range(len(datalist)):
         idx = 0
         for td in datalist[rowidx]:
+
             if idx==0 or idx == 4:
                 ws1.cell(row=startrow, column=idx + 1, value=td).font = font2
+            elif idx == 5:
+                ws1.cell(row=startrow, column=idx + 1).value = '=HYPERLINK("{}", "{}")'.format(alist[rowidx], td)
+                ws1.cell(row=startrow, column=idx + 1).font = font2
             elif idx==6:
-                ws1.cell(row=startrow, column=idx + 1, value=int(td)).font = font2
+                ws1.cell(row=startrow, column=idx + 1, value=int(td))
             elif idx == 7:
                 mm,dd=td.split('-')
-                str = mm+"월 "+dd+"일"
-                ws1.cell(row=startrow, column=idx + 1, value=str)
+                str1 = mm+"월 "+dd+"일"
+                ws1.cell(row=startrow, column=idx + 1, value=str1)
             elif idx == 8:
-                if 'D-' in td:
+                if 'D-' in td or '오늘' in td:
                     ws1.cell(row=startrow, column=idx + 1, value=td).font = font3
                 else:
                     mm, dd = td.split('-')
-                    str = mm + "월 " + dd + "일"
-                    ws1.cell(row=startrow, column=idx + 1, value=str)
-
+                    str1 = mm + "월 " + dd + "일"
+                    ws1.cell(row=startrow, column=idx + 1, value=str1)
             else:
                 ws1.cell(row=startrow, column=idx + 1, value=td)
             idx += 1
@@ -101,9 +96,12 @@ if __name__=="__main__":
     ID = option[2].strip()
     PW = option[6].strip()
     FILENAME = option[10].strip()
+    startpage = int(option[14].strip())
+    endpage = int(option[18].strip())
+    cycle = int(option[22].strip())
+    detailURL = 'http://www.medigate.net/cbiz/recjob.do?cmd=detail&menuGroupCode=CBIZ&menuCode=RECJOB&pageNo=1&inviteType=&hopLocCode=&hopCityCode=&spcCode=&orgType=&searchKey=title&searchValue=&ctgCode=job&boardIdx='
     initExcel(FILENAME)
     print("_______________________________________________")
-    datalist = []
 
     driver = webdriver.Chrome('./chromedriver')
     driver.get('http://www.medigate.net/index.jsp')
@@ -112,47 +110,46 @@ if __name__=="__main__":
     driver.find_element_by_xpath('//*[@id="contentID"]/div[1]/div[2]/div[1]/form/fieldset/div[2]/input[2]').send_keys(PW)
     driver.find_element_by_xpath('//*[@id="contentID"]/div[1]/div[2]/div[1]/form/fieldset/div[2]/button').click()
     time.sleep(0.5)
-    'http://www.medigate.net/cbiz/recjob.do?cmd=detail&menuGroupCode=CBIZ&menuCode=RECJOB&pageNo=1&inviteType=&hopLocCode=&hopCityCode=&spcCode=&orgType=&searchKey=title&searchValue=&ctgCode=job&boardIdx='
-    driver.get('http://www.medigate.net/cbiz/recjob.do?cmd=list&menuGroupCode=CBIZ&menuCode=RECJOB&ctgCode=job&pageNo=1')
-    bs4 = BeautifulSoup(driver.page_source,'lxml')
-    table = bs4.find_all('div',class_="wrap_board_list")[2].find('table')
-    trlist = table.find_all('tr')[1:]
-    for tr in trlist:
-        tdlist = tr.find_all('td')
-        tmplist = []
-        for td in tdlist:
-            try:
-                tmplist.append(td.find('a').get_text().strip())
-            except:
-                tmplist.append(td.get_text().strip())
-        datalist.append(tmplist)
-    saveExcel(datalist,FILENAME)
+    picidx = 2
+    try:
+        for pagenum in range(startpage,endpage+1):
+            print(">>>",pagenum," 페이지 추출중")
+            driver.get('http://www.medigate.net/cbiz/recjob.do?cmd=list&menuGroupCode=CBIZ&menuCode=RECJOB&ctgCode=job&pageNo='+str(pagenum))
+            bs4 = BeautifulSoup(driver.page_source,'lxml')
+            table = bs4.find_all('div',class_="wrap_board_list")[2].find('table')
+            trlist = table.find_all('tr')[1:]
+            datalist = []
+            alist = []
+            imagelist = []
+            for tr in trlist:
+                tdlist = tr.find_all('td')
+                tmplist = []
+                for td in tdlist:
+                    try:
+                        tmplist.append(td.find('a').get_text().strip())
+                        alist.append(detailURL+str(numregex.search(td.find('a')['href']).group()))
+                    except:
+                        tmplist.append(td.get_text().strip())
+                datalist.append(tmplist)
+            alistidx = 0
+            print("\t>>> 엑셀에 저장중...")
+            for detail in alist:
+                driver.get(detail)
+                time.sleep(cycle)
+                bs4 = BeautifulSoup(driver.page_source,'lxml')
+                try:
+                    img = bs4.find('div',class_="wrap_head").find('img')['src']
+                    urllib.request.urlretrieve(img,"./image/"+str(picidx)+"_"+datalist[alistidx][4]+".jpg")
+                    imagelist.append("./image/"+detail.split('boardIdx=')[1]+".jpg")
+                except:
+                    pass
+                picidx+=1
+                alistidx+=1
+            saveExcel(datalist,imagelist,alist,FILENAME)
+            print("\t>>> 엑셀에 저장완료...")
+            print(">>>", pagenum, " 페이지 추출완료 !")
+    except:
+        print("일시적으로 네트워크 불안정, 타겟사이트 불안정으로 오류가 날수있습니다.")
+        print("계속해서 오류가 나면 연락주세요 ㅡ 박형준")
+        saveExcel(datalist, imagelist, alist, FILENAME)
     driver.quit()
-
-    # login end
-
-"""selenium cookie To requests
-    headers = {
-    'Accept-Encoding':'gzip, deflate',
-    'Accept-Language':'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Connection':'keep-alive',
-    'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36'
-    }
-    cookies_list = driver.get_cookies()
-    s = requests.Session()
-    for cookie in cookies_list:
-        s.cookies.set(cookie['name'], cookie['value'])
-    html = s.get('http://www.medigate.net/cbiz/recjob.do?cmd=list&menuGroupCode=CBIZ&menuCode=RECJOB&ctgCode=job&pageNo=3&_nil=1&_nil=',headers=headers)
-    bs4 = BeautifulSoup(html.text,'lxml')
-    print(bs4.prettify())
-    driver.quit()
-    
-    
-    with open('test.jpg', "wb") as file:
-        # get request
-        response = requests.get('http://image.medigate.net/upload/2017/02/1486943727887_34172.jpg')
-        # write to file
-        file.write(response.content)
-"""
-
-

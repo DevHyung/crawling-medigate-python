@@ -1,25 +1,143 @@
-from CONFIG import *
 import requests
+import urllib.request
+import time
 from bs4 import BeautifulSoup
 from selenium import webdriver
-headers = {
-'Accept-Encoding':'gzip, deflate',
-'Accept-Language':'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-'Connection':'keep-alive',
-'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36'
-}
-if __name__=="__main__":
+from openpyxl import Workbook
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill,Alignment, Font,Border,Side,NamedStyle
+from openpyxl.styles import colors
+import re
+#numregex = re.compile('\d+')
+#numregex.search("test")
+###
+font =Font(color=colors.BLACK)
+font2 = Font(color='578fcc')
+font3 = Font(color="ff0000")
+fill = PatternFill("solid",  fgColor='FF839ce3')
+ali = Alignment(horizontal='center',vertical='center',shrinkToFit=True)
+thin = Side(border_style="thin", color="000000")
+border = Border(top=thin, left=thin, right=thin, bottom=thin)
+###
+def style_range(ws, cell_range, border=Border(), fill=None, font=None, alignment=None):
+    top = Border(top=border.top)
+    left = Border(left=border.left)
+    right = Border(right=border.right)
+    bottom = Border(bottom=border.bottom)
+    rows = ws[cell_range]
 
-    exit(-1)
+    for cell in rows[0]:
+        cell.border = cell.border + top
+    for cell in rows[-1]:
+        cell.border = cell.border + bottom
+    for row in rows:
+        l = row[0]
+        r = row[-1]
+        l.border = l.border + left
+        r.border = r.border + right
+        if fill:
+            for c in row:
+                c.fill = fill
+                c.font = font
+                c.alignment=alignment
+                c.border = border
+def initExcel(filename):
+    """
+    지역 분류 과목 기관 기관명 제목 조회 작성일 마감 이미지
+    """
+    header1 = ['지역','분류','과목','기관','기관명','제목','조회','작성일','마감','이미지']
+    wb = Workbook()
+    ws1 = wb.worksheets[0]
+    ws1.append(header1)
+    style_range(ws1, 'A1:J1', border=border, fill=fill,font=font, alignment=ali)
+    wb.save(filename)
+def saveExcel(datalist,filename):
+    """
+    지역 분류 과목 기관 기관명 제목 조회 작성일 마감 이미지
+    """
+    wb = load_workbook(filename)
+    ws1 = wb.worksheets[0]
+    startrow = ws1.max_row + 1
+    ##size
+    date_style = NamedStyle(name='datetime', number_format='MM월 DD일')
+    for rowidx in range(len(datalist)):
+        idx = 0
+        for td in datalist[rowidx]:
+            if idx==0 or idx == 4:
+                ws1.cell(row=startrow, column=idx + 1, value=td).font = font2
+            elif idx==6:
+                ws1.cell(row=startrow, column=idx + 1, value=int(td)).font = font2
+            elif idx == 7:
+                mm,dd=td.split('-')
+                str = mm+"월 "+dd+"일"
+                ws1.cell(row=startrow, column=idx + 1, value=str)
+            elif idx == 8:
+                if 'D-' in td:
+                    ws1.cell(row=startrow, column=idx + 1, value=td).font = font3
+                else:
+                    mm, dd = td.split('-')
+                    str = mm + "월 " + dd + "일"
+                    ws1.cell(row=startrow, column=idx + 1, value=str)
+
+            else:
+                ws1.cell(row=startrow, column=idx + 1, value=td)
+            idx += 1
+        startrow += 1
+    colidx = 0
+    for col in ws1.columns:
+        column = col[0].column  # Get the column name
+        if colidx == 4:
+            ws1.column_dimensions[column].width = 20
+        else:
+            ws1.column_dimensions[column].width = 10
+        colidx+=1
+    wb.save(filename)
+
+if __name__=="__main__":
+    print("_______________________________________________")
+    print("*** Made By Pakr HyungJune copyright @ DevHyung")
+    f = open("option.txt", 'r',encoding='utf8')
+    option = f.readlines()
+    ID = option[2].strip()
+    PW = option[6].strip()
+    FILENAME = option[10].strip()
+    initExcel(FILENAME)
+    print("_______________________________________________")
+    datalist = []
+
     driver = webdriver.Chrome('./chromedriver')
     driver.get('http://www.medigate.net/index.jsp')
     # login start
     driver.find_element_by_xpath('//*[@id="contentID"]/div[1]/div[2]/div[1]/form/fieldset/div[2]/input[1]').send_keys(ID)
     driver.find_element_by_xpath('//*[@id="contentID"]/div[1]/div[2]/div[1]/form/fieldset/div[2]/input[2]').send_keys(PW)
     driver.find_element_by_xpath('//*[@id="contentID"]/div[1]/div[2]/div[1]/form/fieldset/div[2]/button').click()
+    time.sleep(0.5)
+    'http://www.medigate.net/cbiz/recjob.do?cmd=detail&menuGroupCode=CBIZ&menuCode=RECJOB&pageNo=1&inviteType=&hopLocCode=&hopCityCode=&spcCode=&orgType=&searchKey=title&searchValue=&ctgCode=job&boardIdx='
+    driver.get('http://www.medigate.net/cbiz/recjob.do?cmd=list&menuGroupCode=CBIZ&menuCode=RECJOB&ctgCode=job&pageNo=1')
+    bs4 = BeautifulSoup(driver.page_source,'lxml')
+    table = bs4.find_all('div',class_="wrap_board_list")[2].find('table')
+    trlist = table.find_all('tr')[1:]
+    for tr in trlist:
+        tdlist = tr.find_all('td')
+        tmplist = []
+        for td in tdlist:
+            try:
+                tmplist.append(td.find('a').get_text().strip())
+            except:
+                tmplist.append(td.get_text().strip())
+        datalist.append(tmplist)
+    saveExcel(datalist,FILENAME)
+    driver.quit()
+
     # login end
 
-    """selenium cookie To requests
+"""selenium cookie To requests
+    headers = {
+    'Accept-Encoding':'gzip, deflate',
+    'Accept-Language':'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Connection':'keep-alive',
+    'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36'
+    }
     cookies_list = driver.get_cookies()
     s = requests.Session()
     for cookie in cookies_list:
@@ -35,6 +153,6 @@ if __name__=="__main__":
         response = requests.get('http://image.medigate.net/upload/2017/02/1486943727887_34172.jpg')
         # write to file
         file.write(response.content)
-    """
+"""
 
 

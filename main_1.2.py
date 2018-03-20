@@ -69,12 +69,15 @@ def saveExcel(datalist,imagelist,alist,filename):
                 str1 = mm+"월 "+dd+"일"
                 ws1.cell(row=startrow, column=idx + 1, value=str1)
             elif idx == 8:
-                if 'D-' in td or '오늘' in td:
-                    ws1.cell(row=startrow, column=idx + 1, value=td).font = font3
-                else:
-                    mm, dd = td.split('-')
-                    str1 = mm + "월 " + dd + "일"
-                    ws1.cell(row=startrow, column=idx + 1, value=str1)
+                try:
+                    if 'D-' in td or '오늘' in td:
+                        ws1.cell(row=startrow, column=idx + 1, value=td).font = font3
+                    else:
+                        mm, dd = td.split('-')
+                        str1 = mm + "월 " + dd + "일"
+                        ws1.cell(row=startrow, column=idx + 1, value=str1)
+                except:
+                    ws1.cell(row=startrow, column=idx + 1, value=td)
             else:
                 ws1.cell(row=startrow, column=idx + 1, value=td)
             idx += 1

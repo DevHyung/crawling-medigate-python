@@ -40,7 +40,7 @@ def style_range(ws, cell_range, border=Border(), fill=None, font=None, alignment
                 c.alignment=alignment
                 c.border = border
 def initExcel(filename):
-    header1 = ['지역','분류','과목','기관','기관명','제목','조회','작성일','마감']
+    header1 = ['지역','분류','과목','기관','기관명','제목','조회','작성일','마감','URL']
     wb = Workbook()
     ws1 = wb.worksheets[0]
     ws1.append(header1)
@@ -60,6 +60,7 @@ def saveExcel(datalist,imagelist,alist,filename):
                 ws1.cell(row=startrow, column=idx + 1, value=td).font = font2
             elif idx == 5:
                 ws1.cell(row=startrow, column=idx + 1).value = '=HYPERLINK("{}", "{}")'.format(alist[rowidx], td)
+                ws1.cell(row=startrow, column=10,value=alist[rowidx])
                 ws1.cell(row=startrow, column=idx + 1).font = font2
             elif idx==6:
                 ws1.cell(row=startrow, column=idx + 1, value=int(td))
@@ -95,8 +96,6 @@ if __name__=="__main__":
     option = f.readlines()
     ID = option[2].strip()
     PW = option[6].strip()
-    print(ID)
-    print(PW)
     FILENAME = option[10].strip()
     startpage = int(option[14].strip())
     endpage = int(option[18].strip())
@@ -107,11 +106,13 @@ if __name__=="__main__":
 
     driver = webdriver.Chrome('./chromedriver')
     driver.get('http://www.medigate.net/index.jsp')
+
     # login start
-    driver.find_element_by_xpath('//*[@id="contentID"]/div[1]/div[2]/div[1]/form/fieldset/div[2]/input[1]').send_keys(ID)
-    driver.find_element_by_xpath('//*[@id="contentID"]/div[1]/div[2]/div[1]/form/fieldset/div[2]/input[2]').send_keys(PW)
+    driver.find_element_by_xpath('//*[@id="contentID"]/div[1]/div[2]/div[1]/form/fieldset/div[2]/input[1]').click()
+    driver.find_element_by_xpath('//*[@id="contentID"]/div[1]/div[2]/div[1]/form/fieldset/div[2]/input[1]').send_keys('sangyoung')
+    driver.find_element_by_xpath('//*[@id="contentID"]/div[1]/div[2]/div[1]/form/fieldset/div[2]/input[2]').click()
+    driver.find_element_by_xpath('//*[@id="contentID"]/div[1]/div[2]/div[1]/form/fieldset/div[2]/input[2]').send_keys('lsy7410')
     driver.find_element_by_xpath('//*[@id="contentID"]/div[1]/div[2]/div[1]/form/fieldset/div[2]/button').click()
-    time.sleep(0.5)
     picidx = 2
     try:
         for pagenum in range(startpage,endpage+1):
@@ -133,20 +134,7 @@ if __name__=="__main__":
                     except:
                         tmplist.append(td.get_text().strip())
                 datalist.append(tmplist)
-            alistidx = 0
             print("\t>>> 엑셀에 저장중...")
-            for detail in alist:
-                driver.get(detail)
-                time.sleep(cycle)
-                bs4 = BeautifulSoup(driver.page_source,'lxml')
-                try:
-                    img = bs4.find('div',class_="wrap_head").find('img')['src']
-                    urllib.request.urlretrieve(img,"./image/"+str(picidx)+"_"+datalist[alistidx][4]+".jpg")
-                    imagelist.append("./image/"+detail.split('boardIdx=')[1]+".jpg")
-                except:
-                    pass
-                picidx+=1
-                alistidx+=1
             saveExcel(datalist,imagelist,alist,FILENAME)
             print("\t>>> 엑셀에 저장완료...")
             print(">>>", pagenum, " 페이지 추출완료 !")
@@ -154,4 +142,4 @@ if __name__=="__main__":
         print("일시적으로 네트워크 불안정, 타겟사이트 불안정으로 오류가 날수있습니다.")
         print("계속해서 오류가 나면 연락주세요 ㅡ 박형준")
         saveExcel(datalist, imagelist, alist, FILENAME)
-    driver.quit()
+    #driver.quit()
